@@ -1,13 +1,91 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Photo Liking Website</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+
+    <style>
+        /* Add some basic styling for the comment modal */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            padding-top: 60px; /* Location of the box */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Basic styling for the photos */
+        .photos-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .photo-item {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+            width: 200px;
+        }
+
+        .photo {
+            width: 100%;
+            height: auto;
+        }
+
+        .buttons {
+            margin: 10px 0;
+        }
+
+        /* Styling for disclaimer */
+        .disclaimer {
+            background-color: #ffeb3b;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #ff9800;
+            color: #d84315;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <h1>Photo Liking Website</h1>
+
+    <!-- Disclaimer Section -->
+    <div class="disclaimer">
+        <p><strong>Disclaimer:</strong> This is just for fun, do not take it too seriously! </p>
+
+        <p><strong>Data Safety:</strong> All your data are safe here, no EmailID or any of your data is stored with us...</p>
+    </div>
 
     <!-- Login Form -->
     <div id="login-container">
@@ -27,40 +105,26 @@
                 <div class="buttons">
                     <button class="like-btn" data-id="{{ photo[0] }}">Like</button>
                     <button class="dislike-btn" data-id="{{ photo[0] }}">Dislike</button>
+                    <button class="comment-btn" data-id="{{ photo[0] }}">Comments</button>
                 </div>
                 <p>Likes: <span id="likes-{{ photo[0] }}">{{ photo[2] }}</span></p>
                 <p>Dislikes: <span id="dislikes-{{ photo[0] }}">{{ photo[3] }}</span></p>
+                <div class="comments-container" id="comments-{{ photo[0] }}" style="display:none;">
+                    <h3>Comments</h3>
+                    <div class="comments-list" id="comments-list-{{ photo[0] }}">
+                        {% for comment in comments[photo[0]] %}
+                        <p> $ {{ comment[1] }} </p>
+                        {% endfor %}
+                    </div>
+                    <textarea id="comment-text-{{ photo[0] }}" placeholder="Add a comment..." required></textarea>
+                    <button class="submit-comment" data-id="{{ photo[0] }}">Submit</button>
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
-
+    
     <script>
-        // Handle login form submission
-        document.getElementById('loginForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-
-            fetch('/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    alert('Logged in successfully');
-                    // Hide login form and show photos container
-                    document.getElementById('login-container').style.display = 'none';
-                    document.getElementById('photos-container').style.display = 'block';
-                    // Save login status
-                    sessionStorage.setItem('loggedIn', true);
-                } else {
-                    alert(data.message);
-                }
-            });
-        });
-
         // Ensure user is logged in before liking or disliking photos
         document.querySelectorAll('.like-btn').forEach(button => {
             button.addEventListener('click', function() {
@@ -69,7 +133,7 @@
                     return;
                 }
                 const photoId = this.getAttribute('data-id');
-                const dislikeBtn = this.nextElementSibling; // Get the dislike button next to the like button
+                const dislikeBtn = this.nextElementSibling;
 
                 fetch('/like', {
                     method: 'POST',
@@ -81,7 +145,6 @@
                     if (data.status === 'success') {
                         const likesElement = document.getElementById(`likes-${photoId}`);
                         likesElement.textContent = parseInt(likesElement.textContent) + 1;
-                        // Disable both buttons since action is complete
                         this.disabled = true;
                         dislikeBtn.disabled = true;
                     } else if (data.status === 'already liked' || data.status === 'already rated') {
@@ -98,7 +161,7 @@
                     return;
                 }
                 const photoId = this.getAttribute('data-id');
-                const likeBtn = this.previousElementSibling; // Get the like button next to the dislike button
+                const likeBtn = this.previousElementSibling;
 
                 fetch('/dislike', {
                     method: 'POST',
@@ -110,11 +173,73 @@
                     if (data.status === 'success') {
                         const dislikesElement = document.getElementById(`dislikes-${photoId}`);
                         dislikesElement.textContent = parseInt(dislikesElement.textContent) + 1;
-                        // Disable both buttons since action is complete
                         this.disabled = true;
                         likeBtn.disabled = true;
                     } else if (data.status === 'already disliked' || data.status === 'already rated') {
                         alert("You have already rated this photo.");
+                    }
+                });
+            });
+        });
+
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('login-container').style.display = 'none';
+                    document.getElementById('photos-container').style.display = 'block';
+                    sessionStorage.setItem('loggedIn', true);
+                } else {
+                    alert(data.message);
+                }
+            });
+        });
+
+        // JavaScript to handle showing/hiding comments and submitting comments
+        document.querySelectorAll('.comment-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const photoId = this.getAttribute('data-id');
+                const commentsContainer = document.getElementById('comments-' + photoId);
+                commentsContainer.style.display = commentsContainer.style.display === 'none' ? 'block' : 'none';
+            });
+        });
+
+        document.querySelectorAll('.submit-comment').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const photoId = this.getAttribute('data-id');
+                const commentText = document.getElementById('comment-text-' + photoId).value;
+
+                if (!commentText) {
+                    alert('Comment cannot be empty');
+                    return;
+                }
+
+                fetch('/comment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        photo_id: photoId,
+                        comment: commentText
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const commentsList = document.getElementById('comments-list-' + photoId);
+                        const newComment = document.createElement('p');
+                        newComment.textContent = commentText;
+                        commentsList.appendChild(newComment);
+                    } else {
+                        alert('Failed to submit comment');
                     }
                 });
             });
