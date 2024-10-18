@@ -140,7 +140,10 @@ def dislike_photo():
     conn.close()
     return jsonify({'status': 'success'})
 
+
+
 if __name__ == '__main__':
     init_db()  # Initialize the database and create the tables
-    insert_photos()  # Insert photos into the database
-    app.run(debug=True)
+    insert_photos() 
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
