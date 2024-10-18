@@ -1,0 +1,124 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Liking Website</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Photo Liking Website</h1>
+
+    <!-- Login Form -->
+    <div id="login-container">
+        <form id="loginForm">
+            <label for="email">Enter your email:</label>
+            <input type="email" id="email" name="email" required>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <div id="photos-container" style="display:none;">
+        <h2>Photos</h2>
+        <div class="photos-container">
+            {% for photo in photos %}
+            <div class="photo-item">
+                <img src="{{ url_for('static', filename='images/' + photo[1]) }}" alt="Photo {{ photo[0] }}" class="photo">
+                <div class="buttons">
+                    <button class="like-btn" data-id="{{ photo[0] }}">Like</button>
+                    <button class="dislike-btn" data-id="{{ photo[0] }}">Dislike</button>
+                </div>
+                <p>Likes: <span id="likes-{{ photo[0] }}">{{ photo[2] }}</span></p>
+                <p>Dislikes: <span id="dislikes-{{ photo[0] }}">{{ photo[3] }}</span></p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Handle login form submission
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Logged in successfully');
+                    // Hide login form and show photos container
+                    document.getElementById('login-container').style.display = 'none';
+                    document.getElementById('photos-container').style.display = 'block';
+                    // Save login status
+                    sessionStorage.setItem('loggedIn', true);
+                } else {
+                    alert(data.message);
+                }
+            });
+        });
+
+        // Ensure user is logged in before liking or disliking photos
+        document.querySelectorAll('.like-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!sessionStorage.getItem('loggedIn')) {
+                    alert('You need to log in first.');
+                    return;
+                }
+                const photoId = this.getAttribute('data-id');
+                const dislikeBtn = this.nextElementSibling; // Get the dislike button next to the like button
+
+                fetch('/like', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({photo_id: photoId})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const likesElement = document.getElementById(`likes-${photoId}`);
+                        likesElement.textContent = parseInt(likesElement.textContent) + 1;
+                        // Disable both buttons since action is complete
+                        this.disabled = true;
+                        dislikeBtn.disabled = true;
+                    } else if (data.status === 'already liked' || data.status === 'already rated') {
+                        alert("You have already rated this photo.");
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('.dislike-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!sessionStorage.getItem('loggedIn')) {
+                    alert('You need to log in first.');
+                    return;
+                }
+                const photoId = this.getAttribute('data-id');
+                const likeBtn = this.previousElementSibling; // Get the like button next to the dislike button
+
+                fetch('/dislike', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({photo_id: photoId})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const dislikesElement = document.getElementById(`dislikes-${photoId}`);
+                        dislikesElement.textContent = parseInt(dislikesElement.textContent) + 1;
+                        // Disable both buttons since action is complete
+                        this.disabled = true;
+                        likeBtn.disabled = true;
+                    } else if (data.status === 'already disliked' || data.status === 'already rated') {
+                        alert("You have already rated this photo.");
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
