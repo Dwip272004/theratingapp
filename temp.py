@@ -6,6 +6,7 @@ app = Flask(__name__)
 app.secret_key = 'thefalcon'  # Replace this with a secure key
 
 # Database setup
+# Database setup
 def init_db():
     conn = sqlite3.connect('likes.db')
     cursor = conn.cursor()
@@ -28,17 +29,6 @@ def init_db():
             photo_id INTEGER,
             action TEXT,
             UNIQUE(email, photo_id) -- Ensures that the user can rate the photo only once
-        )
-    ''')
-
-    # Create a table for comments
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            photo_id INTEGER,
-            email TEXT,
-            comment TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
@@ -71,23 +61,14 @@ def login():
     return jsonify({'status': 'success', 'message': 'Logged in successfully'})
 
 # Home route
-# Home route
 @app.route('/')
 def index():
     conn = sqlite3.connect('likes.db')
     cursor = conn.cursor()
-    # Order by likes DESC and dislikes ASC
-    cursor.execute('SELECT * FROM photos ORDER BY likes DESC, dislikes ASC')
+    cursor.execute('SELECT * FROM photos ORDER BY likes DESC')
     photos = cursor.fetchall()
-    
-    # Get comments for each photo
-    comments = {}
-    for photo in photos:
-        cursor.execute('SELECT email, comment, created_at FROM comments WHERE photo_id=?', (photo[0],))
-        comments[photo[0]] = cursor.fetchall()
-
     conn.close()
-    return render_template('index.html', photos=photos, comments=comments)
+    return render_template('index.html', photos=photos)
 
 # Like a photo route
 @app.route('/like', methods=['POST'])
@@ -159,30 +140,9 @@ def dislike_photo():
     conn.close()
     return jsonify({'status': 'success'})
 
-# Route to add a comment to a photo
-@app.route('/comment', methods=['POST'])
-def comment_photo():
-    if 'email' not in session:
-        return jsonify({'status': 'error', 'message': 'You must be logged in to comment on photos'}), 403
-
-    email = session['email']
-    data = request.json
-    photo_id = data['photo_id']
-    comment_text = data['comment']
-
-    conn = sqlite3.connect('likes.db')
-    cursor = conn.cursor()
-
-    # Insert the comment into the database
-    cursor.execute('INSERT INTO comments (photo_id, email, comment) VALUES (?, ?, ?)', (photo_id, email, comment_text))
-    
-    conn.commit()
-    conn.close()
-    return jsonify({'status': 'success'})
-
-
 
 if __name__ == '__main__':
     init_db()  # Initialize the database and create the tables
-    insert_photos()  # Insert photos into the database
-    app.run(debug=True)
+    insert_photos() 
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
