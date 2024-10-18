@@ -141,7 +141,6 @@ def dislike_photo():
     return jsonify({'status': 'success'})
 
 
-
 if __name__ == '__main__':
     init_db()  # Initialize the database and create the tables
     insert_photos() 
