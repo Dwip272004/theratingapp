@@ -77,7 +77,7 @@ def index():
     conn = sqlite3.connect('likes.db')
     cursor = conn.cursor()
     # Order by likes DESC and dislikes ASC
-    cursor.execute('SELECT * FROM photos ORDER BY likes DESC, dislikes ASC')
+    cursor.execute('SELECT * FROM photos ORDER BY dislikes ASC')
     photos = cursor.fetchall()
     
     # Get comments for each photo
